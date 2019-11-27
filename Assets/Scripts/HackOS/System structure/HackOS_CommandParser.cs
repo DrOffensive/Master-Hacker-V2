@@ -9,10 +9,10 @@ public class HackOS_CommandParser : MonoBehaviour
     public int ynResult;
     public PWResult pwResult;
 
-    public NativeHackOSCommand mountCommand, navigateCommand, listDirectoryCommand;
+    public NativeHackOSCommand mountCommand, switchProfileCommand;
 
     public NativeHackOSCommand mountListModifier, mountJackModifier, mountFloppyModifier;
-    public NativeHackOSCommand navigateBackModifier;
+    public NativeHackOSCommand switchProfileGetModifier, switchProfileSetModifier;
 
     public void ParseCommand (HackOS_TerminalScreen terminal, HackOS_driveStructure drive, string command)
     {
@@ -30,10 +30,12 @@ public class HackOS_CommandParser : MonoBehaviour
     public IEnumerator ExecuteCommand(HackOS_TerminalScreen terminal, HackOS_driveStructure drive, string command)
     {
         string[] words = command.ToLower().Split(' ');
-
-        if(words[0] == mountCommand.command.ToLower())
+        bool usedNativeCommand = false;
+        bool usedSystem = false;
+        if (words[0] == mountCommand.command.ToLower())
         {
-            if(words.Length < 3)
+            usedNativeCommand = true;
+            if (words.Length < 3)
             {
                 if (words.Length == 1)
                 {
@@ -151,12 +153,156 @@ public class HackOS_CommandParser : MonoBehaviour
             {
                 terminal.InsertLine("Unknown keyword: " + words[2], true);
             }
-        }
-
-        if(terminal.ActiveSession != null)
+        } else if(words[0]==switchProfileCommand.command.ToLower())
         {
+            usedNativeCommand = true;
+            if (words.Length < 3)
+            {
+                if(words.Length==1)
+                {
+                    terminal.InsertLine("Must specify value", true);
+                } else
+                {
+                    if(words[1]==switchProfileGetModifier.command.ToLower())
+                    {
+                        if (terminal.ActiveSession != null)
+                        {
+                            terminal.InsertLine("Profile: " + terminal.ActiveSession.profile.username, true);
+                            terminal.InsertLine("Privilidge Level: " + terminal.ActiveSession.profile.userLevel.ToString(), true);
+                        } else
+                        {
+                            terminal.InsertLine("No active session", true);
+                        }
+                    } else if (words[1]==switchProfileSetModifier.command)
+                    {
+                        if (terminal.ActiveSession != null)
+                        {
+                            pwResult = new PWResult();
+                            StartCoroutine(LoginPrompt(terminal));
+                            while (pwResult.position != 3)
+                            {
+                                yield return null;
+                            }
+                            HackOS_profile profile = terminal.ActiveSession.drive.CheckLoginDetails(pwResult.username, pwResult.password);
+                            if (profile == null)
+                            {
+                                terminal.InsertLine("Invalid username or password", true);
+                            }
+                            else
+                            {
+                                if ((int)profile.userLevel >= (int)terminal.ActiveSession.drive.CheckDirectory(terminal.ActiveSession.MountedDirectories).protectionLevel)
+                                {
+                                    terminal.ActiveSession.profile = profile;
+                                }
+                                else
+                                {
+                                    terminal.InsertLine("Insufficient priviledge level", true);
+                                }
+                            }
+                        } else
+                        {
+                            terminal.InsertLine("Mount a drive to begin a session", true);
+                        }
+                    }
+                    else
+                    {
+                        terminal.InsertLine("Unknown keyword: " + words[1], true);
+                    }
+                }
+            } else
+            {
+                terminal.InsertLine("Unknown keyword: " + words[2], true);
+            }
+        } else if(terminal.ActiveSession != null && !usedNativeCommand)
+        {
+            HackOS_systemPath targetPath;
+            if(words[0].Contains("/") || IsFolder(words[0], terminal.ActiveSession))
+            {
+                string path = words[0];
+                if(path.EndsWith("/"))
+                {
+                    path = path.Remove(path.Length - 1);
+                }
+                if (path.StartsWith("/"))
+                {
+                    path = path.Remove(0);
+                }
 
+                string[] splitPath = path.Contains("/") ? path.Split('/') : new string[1] { path };
+                if (splitPath[splitPath.Length-1].Contains("."))
+                {
+                    List<string> dirs = splitPath[0] == terminal.ActiveSession.drive.rootDirectory.name ? new List<string>() : new List<string>(terminal.ActiveSession.MountedDirectories);
+                    for(int i = 0; i < splitPath.Length - 1; i++)
+                    {
+                        dirs.Add(splitPath[i]);
+                    }
+                    string[] file = splitPath[splitPath.Length - 1].Split('.');
+                    targetPath = new HackOS_systemPath(dirs, file[0], file[1]);
+                } else
+                {
+                    List<string> dirs = splitPath[0] == terminal.ActiveSession.drive.rootDirectory.name ? new List<string>() : new List<string>(terminal.ActiveSession.MountedDirectories);
+                    for (int i = 0; i < splitPath.Length; i++)
+                    {
+                        dirs.Add(splitPath[i]);
+                    }
+                    targetPath = new HackOS_systemPath(dirs, "", "");
+                }
+
+                string[] removedPath = new string[words.Length - 1];
+                for(int i = 1; i < words.Length; i++)
+                {
+                    removedPath[i - 1] = words[i];
+                }
+                words = removedPath;
+            } else
+            {
+                targetPath = new HackOS_systemPath(terminal.ActiveSession.MountedDirectories, "", "");
+            }
+            foreach (HackOS_System OSsystem in terminal.ActiveSession.drive.systems)
+            {
+                foreach (NativeHackOSCommand systemCommand in OSsystem.entryPoints)
+                {
+                    if (words[0] == systemCommand.command) {
+                        usedSystem = true;
+                        bool allow = true;
+                        if (systemCommand.mustConfirm)
+                        {
+                            allow = false;
+                            StartCoroutine(YNPrompt(terminal));
+                            while (ynResult == 0)
+                            {
+                                yield return null;
+                            }
+
+                            if (ynResult == 1)
+                            {
+                                allow = true;
+                            }
+                        }
+                        if (allow)
+                        {
+                            StartCoroutine(OSsystem.ParseCommand(words, terminal, targetPath));
+                            int loop = 0;
+                            while (!OSsystem.IsComplete || loop > 1000)
+                            {
+                                //Debug.Log("stuck" + 0 + ", " + OSsystem.name);
+                                loop++;
+                                yield return null;
+                            }
+                        }
+                        break;
+                    }
+                }
+                if (usedSystem)
+                    break;
+            }
         }
+
+        if (!usedSystem && !usedNativeCommand)
+        {
+            terminal.InsertLine("Unknown keyword: " + words[0], true);
+        }
+
 
 
         //How to handle Yes/No Prompt
@@ -184,6 +330,23 @@ public class HackOS_CommandParser : MonoBehaviour
         terminal.ScrollLine();
     }
 
+    bool IsFolder (string word, ActiveSession session)
+    {
+        if (session.drive.rootDirectory.name == word)
+            return true;
+
+        HackOS_directory cDir = session.drive.CheckDirectory(session.MountedDirectories);
+        
+
+
+        foreach (HackOS_data data in cDir.data)
+        {
+            if (data.name.ToLower() == word && data is HackOS_directory)
+                return true;
+        }
+
+        return false;
+    }
 
     public IEnumerator YNPrompt (HackOS_TerminalScreen screen)
     {

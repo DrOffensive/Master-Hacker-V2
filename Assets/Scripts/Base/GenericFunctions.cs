@@ -78,6 +78,27 @@ public static class GenericFunctions
         return float.Parse(output);
     }   
 
+    public static string StepIn (string baseString, int step, int margin)
+    {
+        string output = "";
+        for(int i = 0; i < step; i++)
+        {
+            if(i < baseString.Length)
+            {
+                if (i < step - margin)
+                    output += baseString[i];
+                else
+                {
+                    output += ".";
+                }
+            } else
+            {
+                output += " ";
+            }
+        }
+        return output;
+    }
+
     /// <summary>
     /// Add copy-paste functionality to any text field
     /// Returns changed text or NULL.

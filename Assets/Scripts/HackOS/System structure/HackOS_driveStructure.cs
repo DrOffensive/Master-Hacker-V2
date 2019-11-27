@@ -9,6 +9,14 @@ public class HackOS_driveStructure : MonoBehaviour
 
     Queue<IEnumerator> commandQueue = new Queue<IEnumerator>();
 
+    public List<HackOS_System> systems = new List<HackOS_System>();
+
+    public void Start()
+    {
+        if (rootDirectory.data == null)
+            rootDirectory.data = new List<HackOS_data>();
+    }
+
     public void EnqueueCommand (IEnumerator command)
     {
         commandQueue.Enqueue(command);
