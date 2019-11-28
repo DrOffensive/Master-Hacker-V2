@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class HackOS_AddRemoveFolder : HackOS_System
 {
-    public HackOS_CommandParser.NativeHackOSCommand protectionModifier;
+    public HackOS_CommandParser.NativeHackOSCommand protectionModifier, hiddenModifier;
 
     public override IEnumerator ParseCommand(string[] words, HackOS_TerminalScreen terminal, HackOS_systemPath targetPath)
     {
@@ -18,35 +18,101 @@ public class HackOS_AddRemoveFolder : HackOS_System
                     bool failed = false;
                     string name = words[1];
                     ProtectionLevel protectionLevel = ProtectionLevel.Public;
+                    bool hidden = false;
 
-                    if(words.Length >= 3)
+                    if(words.Length > 2)
                     {
-                        if(words[2] == protectionModifier.command)
+                        for(int i = 2; i < 7; i++)
                         {
-                            if(words.Length == 4)
+                            if (words.Length > i)
                             {
-                                int lvl = -1; 
-                                int.TryParse(words[3], out lvl);
-                                if(lvl!=-1)
+                                if (words[i] == protectionModifier.command.ToLower())
                                 {
-                                    if(lvl >= (int)terminal.ActiveSession.profile.userLevel)
+                                    if (words.Length > i + 1)
                                     {
-                                        protectionLevel = (ProtectionLevel)lvl;
+                                        int lvl = -1;
+                                        int.TryParse(words[i+1], out lvl);
+                                        if (lvl != -1)
+                                        {
+                                            if (lvl >= (int)terminal.ActiveSession.profile.userLevel)
+                                            {
+                                                protectionLevel = (ProtectionLevel)lvl;
+                                            }
+                                            else
+                                            {
+                                                terminal.InsertLine("Insufficient priviledge level", true);
+                                                failed = true;
+                                                break;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            terminal.InsertLine("Unknown keyword: " + words[i + 1], true);
+                                            failed = true;
+                                            break;
+                                        }
+                                        i++;
+                                    }
+                                } else if(words[i] == hiddenModifier.command.ToLower())
+                                {
+                                    if ((int)terminal.ActiveSession.profile.userLevel >= 1)
+                                    {
+                                        if (words.Length > i + 1)
+                                        {
+                                            int lvl = -1;
+                                            int.TryParse(words[i + 1], out lvl);
+                                            if (lvl != -1)
+                                            {
+                                                if (lvl < 2)
+                                                {
+                                                    hidden = lvl == 0 ? false : true;
+                                                }
+                                                else
+                                                {
+                                                    terminal.InsertLine("Insufficient priviledge level", true);
+                                                    failed = true;
+                                                    break;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (words[1] == "true")
+                                                {
+                                                    hidden = true;
+                                                }
+                                                else if (words[1] == "false")
+                                                {
+                                                    hidden = false;
+                                                }
+                                                else
+                                                {
+                                                    terminal.InsertLine("Unknown keyword: " + words[i + 1], true);
+                                                    failed = true;
+                                                    break;
+                                                }
+                                            }
+                                            i++;
+                                        } else
+                                        {
+                                            terminal.InsertLine("Must provide value", true);
+                                            failed = true;
+                                            break;
+                                        }
                                     } else
                                     {
                                         terminal.InsertLine("Insufficient priviledge level", true);
                                         failed = true;
+                                        break;
                                     }
-                                }else
+                                } else
                                 {
-                                    terminal.InsertLine("Unknown keyword: " + words[3], true);
-                                    failed = true;
+                                    terminal.InsertLine("Unknown keyword: " + words[i], true);
+                                    break;
                                 }
+                            } else
+                            {
+                                break;
                             }
-                        } else
-                        {
-                            terminal.InsertLine("Unknown keyword: " + words[2], true);
-                            failed = true;
                         }
                     }
                     if(!failed)
@@ -62,7 +128,7 @@ public class HackOS_AddRemoveFolder : HackOS_System
                             if(file.Length == 2)
                             {
                                 directory.data.Add(new HackOS_file(file[0], file[1], HackOSEncrytpion.None));
-                                terminal.InsertLine("Created file" + dir + file[0] + "." + file[1], true);
+                                terminal.InsertLine("Created file " + dir + file[0] + "." + file[1], true);
                             } else
                             {
                                 terminal.InsertLine("Invalid name " + name, true);
@@ -70,8 +136,8 @@ public class HackOS_AddRemoveFolder : HackOS_System
                         }
                         else
                         {
-                            directory.data.Add(new HackOS_directory(name, false, protectionLevel));
-                            terminal.InsertLine("Created folder" + dir + name, true);
+                            directory.data.Add(new HackOS_directory(name, hidden, protectionLevel));
+                            terminal.InsertLine("Created folder " + dir + name, true);
                         }
                     }
 

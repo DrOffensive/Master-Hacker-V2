@@ -758,6 +758,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: MainframeTerminal01
       objectReference: {fileID: 0}
+    - target: {fileID: 6071032182088283758, guid: e63f13b32220be14a9c7dd17c10fdebc,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: -8396522786600162248, guid: e63f13b32220be14a9c7dd17c10fdebc,
         type: 3}
       propertyPath: m_Convex
@@ -893,11 +898,6 @@ PrefabInstance:
       propertyPath: m_Materials.Array.data[0]
       value: 
       objectReference: {fileID: 2100000, guid: eabb2af0799912c4ab3741a967edab9a, type: 2}
-    - target: {fileID: 6071032182088283758, guid: e63f13b32220be14a9c7dd17c10fdebc,
-        type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 7942777057199402512, guid: e63f13b32220be14a9c7dd17c10fdebc,
         type: 3}
       propertyPath: m_Convex
@@ -4980,10 +4980,10 @@ MonoBehaviour:
     command: -list
     mustConfirm: 0
   mountJackModifier:
-    command: -mainframe
+    command: mainframe
     mustConfirm: 0
   mountFloppyModifier:
-    command: -floppy
+    command: floppy
     mustConfirm: 0
   switchProfileGetModifier:
     command: -get
@@ -6592,6 +6592,8 @@ MonoBehaviour:
     mustConfirm: 0
   - command: dir
     mustConfirm: 0
+  - command: showhidden
+    mustConfirm: 1
 --- !u!114 &1990669178
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6611,6 +6613,9 @@ MonoBehaviour:
     mustConfirm: 1
   protectionModifier:
     command: -protection
+    mustConfirm: 0
+  hiddenModifier:
+    command: -hidden
     mustConfirm: 0
 --- !u!1 &2011398329 stripped
 GameObject:
